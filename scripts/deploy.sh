@@ -18,6 +18,6 @@ if [[ ! -d "$(dirname "$DEST")" ]]; then
   exit 1
 fi
 
-mkdir -p "$DEST"
+if [[ ${#DRY[@]} -eq 0 ]]; then mkdir -p "$DEST"; fi
 rsync -a --delete --itemize-changes "${DRY[@]}" "$SRC" "$DEST"
 echo "Deployed to $DEST${DRY:+ (dry run)}"
