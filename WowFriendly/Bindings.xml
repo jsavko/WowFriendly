@@ -1,8 +1,14 @@
 <Bindings>
+	<Binding name="WOWFRIENDLY_SMILE2" category="WowFriendly">
+		WowFriendly_Bind("smile2")
+	</Binding>
 	<Binding name="WOWFRIENDLY_SMILE" category="WowFriendly">
 		WowFriendly_Bind("smile")
 	</Binding>
 	<Binding name="WOWFRIENDLY_FROWN" category="WowFriendly">
 		WowFriendly_Bind("frown")
+	</Binding>
+	<Binding name="WOWFRIENDLY_FROWN2" category="WowFriendly">
+		WowFriendly_Bind("frown2")
 	</Binding>
 </Bindings>

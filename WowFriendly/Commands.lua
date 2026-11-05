@@ -2,18 +2,21 @@
 local _, ns = ...
 
 local USAGE = {
-  "/wf happy [name[: note]]   rate a player friendly (default: target, then mouseover)",
-  "/wf sad [name[: note]]     rate a player a jerk",
-  "/wf clear [name]           remove your rating",
-  "/wf note [name:] <text>    set or replace the note on your rating",
-  "/wf who [name]             show everything your circle has said about a player",
-  "/wf list                   open the rated players window",
-  "/wf trust <Name Surname>   trust a character's ratings (also: untrust, trusted)",
-  "/wf sync                   say hello to friends and sync now",
-  "/wf export | import        share ratings as a text string",
-  "/wf status                 show counts, peers and queue",
-  "/wf config                 open settings",
-  "/wf debug                  toggle debug output",
+  "/wf veryhappy [name[: note]]  two smiles: very friendly (default: target, then mouseover)",
+  "/wf happy [name[: note]]      one smile: friendly",
+  "/wf sad [name[: note]]        one frown: jerk",
+  "/wf verysad [name[: note]]    two frowns: big jerk",
+  "/wf ++ | + | - | --           short forms of the four ratings above",
+  "/wf clear [name]              remove your rating",
+  "/wf note [name:] <text>       set or replace the note on your rating",
+  "/wf who [name]                show everything your circle has said about a player",
+  "/wf list                      open the rated players window",
+  "/wf trust <Name Surname>      trust a character's ratings (also: untrust, trusted)",
+  "/wf sync                      say hello to friends and sync now",
+  "/wf export | import           share ratings as a text string",
+  "/wf status                    show counts, peers and queue",
+  "/wf config                    open settings",
+  "/wf debug                     toggle debug output",
   "Names with a surname take a colon before the note: /wf sad Arthas Menethil: ninja looted",
 }
 
@@ -121,12 +124,20 @@ end
 
 local handlers = {}
 
+handlers.veryhappy = function(rest) rateCommand(2, rest, "veryhappy") end
+handlers.happy2 = handlers.veryhappy
+handlers["++"] = handlers.veryhappy
 handlers.happy = function(rest) rateCommand(1, rest, "happy") end
 handlers.smile = handlers.happy
 handlers.good = handlers.happy
+handlers["+"] = handlers.happy
 handlers.sad = function(rest) rateCommand(-1, rest, "sad") end
 handlers.frown = handlers.sad
 handlers.bad = handlers.sad
+handlers["-"] = handlers.sad
+handlers.verysad = function(rest) rateCommand(-2, rest, "verysad") end
+handlers.sad2 = handlers.verysad
+handlers["--"] = handlers.verysad
 handlers.clear = function(rest)
   local key = resolveKey(rest, "clear")
   if key then ns.Rate(key, 0) end
@@ -199,8 +210,12 @@ SlashCmdList.WOWFRIENDLY = dispatch
 
 -- Keybindings (Bindings.xml) call this global.
 BINDING_HEADER_WOWFRIENDLY = "WowFriendly"
+BINDING_NAME_WOWFRIENDLY_SMILE2 = "Two smiles at mouseover / target"
 BINDING_NAME_WOWFRIENDLY_SMILE = "Smile at mouseover / target"
 BINDING_NAME_WOWFRIENDLY_FROWN = "Frown at mouseover / target"
+BINDING_NAME_WOWFRIENDLY_FROWN2 = "Two frowns at mouseover / target"
+
+local BIND_VALUES = { smile2 = 2, smile = 1, frown = -1, frown2 = -2, clear = 0 }
 
 function WowFriendly_Bind(action)
   if not ns.db then return end
@@ -209,13 +224,8 @@ function WowFriendly_Bind(action)
     ns.Print("No player under the mouse or targeted.")
     return
   end
-  if action == "smile" then
-    ns.Rate(key, 1)
-  elseif action == "frown" then
-    ns.Rate(key, -1)
-  elseif action == "clear" then
-    ns.Rate(key, 0)
-  end
+  local value = BIND_VALUES[action]
+  if value then ns.Rate(key, value) end
 end
 
 ns.Commands = { dispatch = dispatch, splitNameAndText = splitNameAndText }

@@ -1,8 +1,8 @@
 # WowFriendly
 
 A World of Warcraft **Forever** addon for remembering who was great to play with and who
-ninja-looted the sword. Tag any player with a smile or a frown, add a short note, and see it
-on their tooltip next time you meet. Ratings are shared automatically with a trusted circle of
+ninja-looted the sword. Tag any player with one or two smiles, or one or two frowns, add a
+short note, and see it on their tooltip next time you meet. Ratings are shared automatically with a trusted circle of
 friends who run the addon, so the group builds a shared memory without anyone re-rating people.
 
 ## Install
@@ -19,6 +19,8 @@ friends who run the addon, so the group builds a shared memory without anyone re
 
 Everyone in your circle needs the addon installed for ratings to sync. Battle.net friends are
 trusted automatically; anyone else is added with `/wf trust Name Surname` on both sides.
+Friends still on version 0.1.0 keep syncing, but they do not see two-smile or two-frown
+ratings until they update.
 
 Working from a checkout instead: `WowFriendly/` is the addon folder. `scripts/deploy.sh` syncs it
 into the AddOns directory with `rsync` (`-n` for a dry run), and `scripts/package.sh` builds the
@@ -28,9 +30,9 @@ release zip into `dist/`. The TOC targets interface `16001` (Forever / Midnight 
 
 | Action | How |
 | --- | --- |
-| Smile / frown at a player | Right-click their portrait or name and pick **WowFriendly > Smile / Frown** |
-| Same, from the keyboard | Bind **Smile at mouseover / target** and **Frown at mouseover / target** under Key Bindings > WowFriendly |
-| From chat | `/wf happy [name]`, `/wf sad [name]` (no name means your target, then mouseover) |
+| Rate a player | Right-click their portrait or name, open **WowFriendly** and pick 😊😊 Very friendly, 😊 Friendly, ☹ Jerk or ☹☹ Big jerk |
+| Same, from the keyboard | Bind **Two smiles**, **Smile**, **Frown** or **Two frowns at mouseover / target** under Key Bindings > WowFriendly |
+| From chat | `/wf veryhappy`, `/wf happy`, `/wf sad` or `/wf verysad [name]`; short forms `/wf ++`, `/wf +`, `/wf -`, `/wf --` (no name means your target, then mouseover) |
 | Add a note | `/wf note Name Surname: text`, or **WowFriendly > Set note...** in the menu |
 | Rate with a note in one go | `/wf sad Arthas Menethil: ninja looted the sword` |
 | Clear your rating | `/wf clear [name]` or **Clear my rating** in the menu |
@@ -38,8 +40,10 @@ release zip into `dist/`. The TOC targets interface `16001` (Forever / Midnight 
 | Browse everyone rated | `/wf list` |
 
 Names on Forever are `Firstname Surname` (there is a single realm). Typing just the first name
-works too. Each friend's rating is kept separately: if two friends disagree, the tooltip shows
-both (`😊 1  ☹ 1`) and who said what, instead of averaging them away.
+works too. Each friend's rating is kept separately. The tooltip shows a count per level in the
+order 😊😊, 😊, ☹, ☹☹ (for example `😊😊 1  😊 2  ☹☹ 1`) and then who said what, so a
+disagreement between friends stays visible instead of being averaged away. Ratings made with
+version 0.1.0 count as one smile or one frown.
 
 ## Sharing
 
@@ -73,11 +77,13 @@ Battle.net sharing, trusted-character sharing, guild sharing, debug output.
 ## All commands
 
 ```
-/wf happy [name[: note]]   /wf sad [name[: note]]   /wf clear [name]
-/wf note [name:] <text>    /wf who [name]           /wf list
-/wf trust <Name Surname>   /wf untrust <name>       /wf trusted
-/wf sync                   /wf export               /wf import
-/wf status                 /wf config               /wf debug
+/wf veryhappy [name[: note]]   /wf happy [name[: note]]   (short: /wf ++, /wf +)
+/wf verysad [name[: note]]     /wf sad [name[: note]]     (short: /wf --, /wf -)
+/wf clear [name]               /wf note [name:] <text>    /wf who [name]
+/wf list                       /wf trust <Name Surname>   /wf untrust <name>
+/wf trusted                    /wf sync                   /wf export
+/wf import                     /wf status                 /wf config
+/wf debug
 ```
 
 `/wowfriendly` is an alias for `/wf`.
@@ -99,8 +105,9 @@ Battle.net sharing, trusted-character sharing, guild sharing, debug output.
 1. `/dump select(4, GetBuildInfo())` prints `16001` and no addon errors appear.
 2. `/wf debug` prints your key as `Firstname Surname` and shows what `UnitFullName("player")`
    returns on this client.
-3. Target a player, `/wf sad`, mouse over them: the tooltip shows the frown line. Right-click
-   them: the **WowFriendly** submenu appears with Smile / Frown / Set note / Clear.
+3. Target a player, `/wf verysad`, mouse over them: the tooltip shows `☹☹ 1`. Right-click
+   them: the **WowFriendly** submenu lists the four levels (😊😊, 😊, ☹, ☹☹) plus Set note and
+   Clear. Pick 😊 and the tooltip changes to `😊 1`.
 4. `/wf list` opens the browser; **Clear** removes your rating and the tooltip updates.
 5. `/wf export` on one character, `/wf import` on another: the ratings round-trip.
 6. With a friend running the addon: group up, `/wf sync`, `/wf status` shows them as a peer and

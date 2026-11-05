@@ -7,6 +7,15 @@ ns.UI.List = List
 
 local ROW_HEIGHT = 22
 local MAX_AUTHORS = 3
+local FRAME_WIDTH = 690
+-- Column x offsets inside a row. The ratings column holds up to four buckets with
+-- double icons (two smiles 2, one smile 1, one frown 1, two frowns 2).
+local COL_ICONS, COL_ICONS_WIDTH = 4, 150
+local COL_NAME, COL_NAME_WIDTH = 158, 160
+local COL_INFO = 324
+local COL_DATE_RIGHT, COL_DATE_WIDTH = -60, 76
+local COL_CLEAR_WIDTH = 52
+local SCROLL_LEFT, SCROLL_RIGHT = 12, -32
 
 local frame, scroll, content, filterBox, countText
 local rows = {}
@@ -23,31 +32,31 @@ local function GetRow(i)
   row.bg:SetColorTexture(1, 1, 1, i % 2 == 0 and 0.05 or 0)
 
   row.icons = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-  row.icons:SetPoint("LEFT", 4, 0)
-  row.icons:SetWidth(62)
+  row.icons:SetPoint("LEFT", COL_ICONS, 0)
+  row.icons:SetWidth(COL_ICONS_WIDTH)
   row.icons:SetJustifyH("LEFT")
 
   row.name = CreateFrame("Button", nil, row)
-  row.name:SetPoint("LEFT", 70, 0)
-  row.name:SetSize(160, ROW_HEIGHT)
+  row.name:SetPoint("LEFT", COL_NAME, 0)
+  row.name:SetSize(COL_NAME_WIDTH, ROW_HEIGHT)
   row.name.text = row.name:CreateFontString(nil, "OVERLAY", "GameFontNormal")
   row.name.text:SetAllPoints()
   row.name.text:SetJustifyH("LEFT")
   row.name:SetScript("OnClick", function() if row.key then ns.Who(row.key) end end)
 
   row.info = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-  row.info:SetPoint("LEFT", 236, 0)
-  row.info:SetPoint("RIGHT", -140, 0)
+  row.info:SetPoint("LEFT", COL_INFO, 0)
+  row.info:SetPoint("RIGHT", COL_DATE_RIGHT - COL_DATE_WIDTH - 4, 0)
   row.info:SetJustifyH("LEFT")
   row.info:SetWordWrap(false)
 
   row.date = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-  row.date:SetPoint("RIGHT", -60, 0)
-  row.date:SetWidth(76)
+  row.date:SetPoint("RIGHT", COL_DATE_RIGHT, 0)
+  row.date:SetWidth(COL_DATE_WIDTH)
   row.date:SetJustifyH("RIGHT")
 
   row.clear = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-  row.clear:SetSize(52, 18)
+  row.clear:SetSize(COL_CLEAR_WIDTH, 18)
   row.clear:SetPoint("RIGHT", -4, 0)
   row.clear:SetText("Clear")
   row.clear:SetScript("OnClick", function() if row.key then ns.Rate(row.key, 0) end end)
@@ -67,7 +76,7 @@ end
 
 local function Build()
   frame = CreateFrame("Frame", "WowFriendlyListFrame", UIParent, "BasicFrameTemplateWithInset")
-  frame:SetSize(600, 440)
+  frame:SetSize(FRAME_WIDTH, 440)
   frame:SetPoint("CENTER")
   frame:SetMovable(true)
   frame:EnableMouse(true)
@@ -94,13 +103,21 @@ local function Build()
   countText = frame:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
   countText:SetPoint("TOPRIGHT", -16, -40)
 
-  local header = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-  header:SetPoint("TOPLEFT", 20, -66)
-  header:SetText("Ratings        Player                          Who said what (newest first)                             Last rated")
+  -- One header per column, anchored at the same offsets the rows use.
+  local function Header(text, point, x)
+    local h = frame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+    h:SetPoint(point, x, -66)
+    h:SetText(text)
+    return h
+  end
+  Header("Ratings", "TOPLEFT", SCROLL_LEFT + COL_ICONS + 4)
+  Header("Player", "TOPLEFT", SCROLL_LEFT + COL_NAME)
+  Header("Who said what (newest first)", "TOPLEFT", SCROLL_LEFT + COL_INFO)
+  Header("Last rated", "TOPRIGHT", SCROLL_RIGHT + COL_DATE_RIGHT)
 
   scroll = CreateFrame("ScrollFrame", nil, frame, "UIPanelScrollFrameTemplate")
-  scroll:SetPoint("TOPLEFT", 12, -82)
-  scroll:SetPoint("BOTTOMRIGHT", -32, 44)
+  scroll:SetPoint("TOPLEFT", SCROLL_LEFT, -82)
+  scroll:SetPoint("BOTTOMRIGHT", SCROLL_RIGHT, 44)
   scroll:SetScript("OnSizeChanged", function() List.Refresh() end)
 
   content = CreateFrame("Frame", nil, scroll)
@@ -144,10 +161,7 @@ function List.Refresh()
         shown = shown + 1
         local row = GetRow(shown)
         row.key = key
-        local icons = {}
-        if agg.happy > 0 then icons[#icons + 1] = ns.SMILE_ICON .. agg.happy end
-        if agg.sad > 0 then icons[#icons + 1] = ns.FROWN_ICON .. agg.sad end
-        row.icons:SetText(table.concat(icons, " "))
+        row.icons:SetText(ns.SummaryText(agg, " "))
         row.name.text:SetText(key)
         local authors = {}
         for i, e in ipairs(agg.entries) do
@@ -167,7 +181,7 @@ function List.Refresh()
   end
   for i = shown + 1, #rows do rows[i]:Hide() end
   local width = scroll:GetWidth()
-  content:SetWidth(width and width > 0 and width or 540)
+  content:SetWidth(width and width > 0 and width or (FRAME_WIDTH - SCROLL_LEFT + SCROLL_RIGHT))
   content:SetHeight(math.max(1, shown * ROW_HEIGHT))
   if shown == total then
     countText:SetText(string.format("%d rated players", total))

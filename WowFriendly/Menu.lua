@@ -30,6 +30,13 @@ local function ResolveKey(contextData)
   return nil
 end
 
+-- "<icons> Very friendly": the chat label with its first letter capitalised.
+local function MenuLabel(level)
+  local info = ns.LEVEL_INFO[level]
+  local label = info and info.label or ""
+  return ns.IconFor(level) .. " " .. (label:gsub("^%l", string.upper))
+end
+
 local function BuildMenu(rootDescription, key)
   local me = ns.Identity.SelfKey()
   local mine = me and ns.Ratings.GetByAuthor(ns.db, key, me)
@@ -38,8 +45,11 @@ local function BuildMenu(rootDescription, key)
   rootDescription:CreateDivider()
   local sub = rootDescription:CreateButton("WowFriendly")
   if sub.CreateTitle then sub:CreateTitle(key) end
-  sub:CreateButton(ns.SMILE_ICON .. " Smile", function() ns.Rate(key, 1) end)
-  sub:CreateButton(ns.FROWN_ICON .. " Frown", function() ns.Rate(key, -1) end)
+  -- Top to bottom: two smiles, one smile, one frown, two frowns.
+  for _, level in ipairs(ns.LEVELS) do
+    local value = level
+    sub:CreateButton(MenuLabel(level), function() ns.Rate(key, value) end)
+  end
   if hasMine then
     sub:CreateButton("Set note...", function() ns.PromptNote(key) end)
     sub:CreateButton("Clear my rating", function() ns.Rate(key, 0) end)
@@ -135,7 +145,7 @@ function ns.PromptNote(key)
   local me = ns.Identity.SelfKey()
   local mine = me and ns.Ratings.GetByAuthor(ns.db, key, me)
   if not mine or mine.r == 0 then
-    ns.Print("Rate %s first (Smile or Frown), then add a note.", key)
+    ns.Print("Rate %s first (pick a smile or frown level), then add a note.", key)
     return
   end
   StaticPopup_Show("WOWFRIENDLY_NOTE", key, nil, { key = key, note = mine.n or "" })

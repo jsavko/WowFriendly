@@ -1,8 +1,8 @@
 ## Interface: 16001
 ## Title: WowFriendly
-## Notes: Tag players with a smile or a frown, see it on their tooltip, and share your ratings with trusted friends.
+## Notes: Tag players with one or two smiles or frowns, see it on their tooltip, and share your ratings with trusted friends.
 ## Author: Simon
-## Version: 0.1.0
+## Version: 0.2.0
 ## IconTexture: Interface\AddOns\WowFriendly\Media\smile
 ## X-Website: https://github.com/simonabizmil/wowFriendly
 ## X-Category: Social

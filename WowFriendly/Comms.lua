@@ -5,9 +5,10 @@
 --   S  since   { m="S", t=lastSyncTime, k=myKey }      "send me what you stored since t"
 --   D  delta   { m="D", e={ {g,a,r,t,n}, ... }, k=myKey }
 --   R  rate    { m="R", e={g,a,r,t,n}, k=myKey }        a single live rating
--- Entries are merged last-writer-wins per (target g, author a); clears travel as
--- tombstones (r = 0). Only trusted senders are accepted: Battle.net friends, the
--- explicit trusted list, and guild members when guild sharing is on.
+-- Entries are merged last-writer-wins per (target g, author a); r runs from -2 (two
+-- frowns) to 2 (two smiles) and clears travel as tombstones (r = 0). Only trusted
+-- senders are accepted: Battle.net friends, the explicit trusted list, and guild
+-- members when guild sharing is on.
 local _, ns = ...
 
 local Comms, Trust = {}, {}
@@ -420,7 +421,7 @@ local function OnRate(msg, ctx)
     if e.r == 0 then
       ns.Print("%s cleared their rating of %s.", author, target)
     else
-      local what = e.r == 1 and (ns.SMILE_ICON .. " friendly") or (ns.FROWN_ICON .. " jerk")
+      local what = ns.LevelText(e.r)
       local note = type(e.n) == "string" and ns.Ratings.SanitizeNote(e.n)
       ns.Print("%s rated %s as %s%s", author, target, what, note and (": \"" .. note .. "\"") or ".")
     end

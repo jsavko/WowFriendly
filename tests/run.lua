@@ -260,7 +260,7 @@ do
   eq(#R.AllTargets(db), 1, "AllTargets excludes tombstone-only players")
 
   -- validation
-  ok(not R.ValidateEntry({ r = 2, t = 1 }), "reject bad rating value")
+  ok(not R.ValidateEntry({ r = 3, t = 1 }), "reject bad rating value")
   ok(not R.ValidateEntry({ r = 1, t = "x" }), "reject non-numeric time")
   ok(not R.ValidateEntry({ r = 1, t = 1.5 }), "reject fractional time")
   ok(not R.ValidateEntry({ r = 1, t = tnow + 90000 }), "reject far-future time")
@@ -307,6 +307,31 @@ do
   -- Wins determinism
   ok(R.Wins({ r = 1, t = 1 }, { r = -1, t = 1 }) and not R.Wins({ r = -1, t = 1 }, { r = 1, t = 1 }), "Wins is antisymmetric on value")
   ok(not R.Wins({ r = 1, t = 1 }, { r = 1, t = 1 }), "identical entries do not win")
+
+  -- four levels: two smiles, one smile, one frown, two frowns
+  ok(R.IsLevel(2) and R.IsLevel(1) and R.IsLevel(-1) and R.IsLevel(-2), "IsLevel accepts the four levels")
+  ok(not R.IsLevel(0) and not R.IsLevel(3) and not R.IsLevel(-3) and not R.IsLevel(1.5) and not R.IsLevel("1"), "IsLevel rejects everything else")
+  local db3 = { ratings = {} }
+  eq(R.Set(db3, "Four Levels", "Author Twoup", 2, nil, 10).r, 2, "set stores two smiles")
+  eq(R.Set(db3, "Four Levels", "Author Oneup", 1, nil, 10).r, 1, "set stores one smile")
+  eq(R.Set(db3, "Four Levels", "Author Onedown", -1, nil, 10).r, -1, "set stores one frown")
+  eq(R.Set(db3, "Four Levels", "Author Twodown", -2, nil, 10).r, -2, "set stores two frowns")
+  ok(not pcall(R.Set, db3, "Four Levels", "Author Bad", 3, nil, 10), "set rejects level 3")
+  ok(not pcall(R.Set, db3, "Four Levels", "Author Bad", 0, nil, 10), "set rejects 0 (clears use Clear)")
+  agg = R.Aggregate(db3, "Four Levels")
+  eq(agg.counts[2], 1, "aggregate counts two smiles")
+  eq(agg.counts[1], 1, "aggregate counts one smile")
+  eq(agg.counts[-1], 1, "aggregate counts one frown")
+  eq(agg.counts[-2], 1, "aggregate counts two frowns")
+  eq(agg.happy, 2, "happy totals both smile levels")
+  eq(agg.sad, 2, "sad totals both frown levels")
+  eq(#agg.entries, 4, "aggregate lists every level")
+  ok(R.ValidateEntry({ r = 2, t = 1 }) and R.ValidateEntry({ r = -2, t = 1 }), "validate accepts two-face levels")
+  ok(not R.ValidateEntry({ r = 3, t = 1 }) and not R.ValidateEntry({ r = -3, t = 1 }), "validate rejects beyond two faces")
+  ok(not R.ValidateEntry({ r = 1.5, t = 1 }), "validate rejects fractional rating")
+  eq(R.Merge(db3, "Four Levels", "Author Oneup", { r = 2, t = 10 }), "updated", "equal time: two smiles beat one smile")
+  ok(R.Wins({ r = 2, t = 1 }, { r = 1, t = 1 }) and not R.Wins({ r = 1, t = 1 }, { r = 2, t = 1 }), "Wins prefers the higher level at equal time")
+  ok(R.Wins({ r = -1, t = 1 }, { r = -2, t = 1 }) and R.Wins({ r = 0, t = 1 }, { r = -1, t = 1 }), "Wins orders 0 > -1 > -2 at equal time")
 end
 
 ---------------------------------------------------------------------------
@@ -412,7 +437,59 @@ do
   units.mouseover = { name = "Hogger", surname = "Gnoll" }
   as(A, function() WowFriendly_Bind("frown") end)
   eq(rating(A, "Hogger Gnoll", A.key).r, -1, "binding rates mouseover")
+  as(A, function() WowFriendly_Bind("smile2") end)
+  eq(rating(A, "Hogger Gnoll", A.key).r, 2, "binding smile2 rates two smiles")
+  as(A, function() WowFriendly_Bind("frown2") end)
+  eq(rating(A, "Hogger Gnoll", A.key).r, -2, "binding frown2 rates two frowns")
   units = {}
+
+  -- four-level commands
+  local S, F = A.ns.SMILE_ICON, A.ns.FROWN_ICON
+  as(A, dispatch, "veryhappy Arthas Menethil: carried us")
+  e = rating(A, "Arthas Menethil", A.key)
+  ok(e and e.r == 2 and e.n == "carried us", "/wf veryhappy stores two smiles with note")
+  ok(LAST_PRINT:find(S .. S .. " very friendly", 1, true), "confirmation shows two smiles and label")
+  as(A, dispatch, "-- Arthas Menethil")
+  e = rating(A, "Arthas Menethil", A.key)
+  ok(e and e.r == -2 and e.n == "carried us", "/wf -- stores two frowns and keeps the note")
+  ok(LAST_PRINT:find(F .. F .. " big jerk", 1, true), "confirmation shows two frowns and label")
+  units.target = { name = "Thrall", surname = "Doomhammer" }
+  as(A, dispatch, "+")
+  eq(rating(A, "Thrall Doomhammer", A.key).r, 1, "/wf + rates target one smile")
+  as(A, dispatch, "-")
+  eq(rating(A, "Thrall Doomhammer", A.key).r, -1, "/wf - rates target one frown")
+  as(A, dispatch, "++")
+  eq(rating(A, "Thrall Doomhammer", A.key).r, 2, "/wf ++ rates target two smiles")
+  as(A, dispatch, "sad2")
+  eq(rating(A, "Thrall Doomhammer", A.key).r, -2, "/wf sad2 rates target two frowns")
+  as(A, dispatch, "happy2 : short note")
+  e = rating(A, "Thrall Doomhammer", A.key)
+  ok(e and e.r == 2 and e.n == "short note", "/wf happy2 with a leading-colon note uses the target")
+  units = {}
+  ok(as(A, A.ns.Rate, "Thrall Doomhammer", 3) == false and LAST_PRINT:find("two smiles"), "Rate rejects level 3 with a hint")
+  eq(rating(A, "Thrall Doomhammer", A.key).r, 2, "rejected level leaves the rating alone")
+
+  -- /wf who reports buckets in level order, then who said what
+  local before = #PRINTS
+  as(A, dispatch, "who Arthas Menethil")
+  ok(PRINTS[before + 1]:find("Arthas Menethil: " .. F .. F .. " 1", 1, true), "/wf who summary shows the two-frown bucket")
+  ok(LAST_PRINT:find(F .. F .. " Jaina Proudmoore", 1, true), "/wf who author line shows two frowns")
+
+  -- core formatting helpers
+  eq(A.ns.IconFor(2), S .. S, "IconFor(2) is two smiles")
+  eq(A.ns.IconFor(1), S, "IconFor(1) is one smile")
+  eq(A.ns.IconFor(-1), F, "IconFor(-1) is one frown")
+  eq(A.ns.IconFor(-2), F .. F, "IconFor(-2) is two frowns")
+  eq(A.ns.IconFor(0), "", "IconFor(0) is empty")
+  eq(A.ns.IconFor(nil), "", "IconFor(nil) is empty")
+  eq(A.ns.IconFor(7), S .. S, "IconFor caps at two icons")
+  eq(A.ns.LevelText(1), S .. " friendly", "LevelText one smile")
+  eq(A.ns.LevelText(-1), F .. " jerk", "LevelText one frown")
+  eq(A.ns.SummaryText({ counts = { [2] = 2, [1] = 0, [-1] = 1, [-2] = 3 } }, "/"),
+    S .. S .. " 2/" .. F .. " 1/" .. F .. F .. " 3", "SummaryText skips empty buckets and keeps level order")
+  eq(A.ns.SummaryText(nil), "", "SummaryText tolerates nil")
+  eq(A.ns.SummaryText({ counts = {} }), "", "SummaryText empty when nothing is rated")
+
   network.clients[A.key] = nil
   flush()
 end
@@ -512,6 +589,34 @@ do
   count = flush()
   ok(count <= 8, "second sync stays small: " .. count)
   ok(rating(B, "Later Person", A.key), "second sync delivered the new entry")
+
+  -- Two-face levels travel like one-face levels: same wire size, same path, same chat
+  local long = string.rep("word ", 20)
+  local function wireSize(r)
+    return #A.ns.Comms.Encode({ m = "R", e = { g = "Strong Person", a = A.key, r = r, t = serverTime, n = long }, k = A.key })
+  end
+  ok(math.abs(wireSize(2) - wireSize(1)) <= 2 and math.abs(wireSize(-2) - wireSize(-1)) <= 2, "two-face levels do not grow the Battle.net payload")
+  advance(200)
+  as(A, A.ns.Rate, "Strong Person", 2, long)
+  flush()
+  e = rating(B, "Strong Person", A.key)
+  ok(e and e.r == 2 and e.n and #e.n > 0 and #e.n <= 100, "two smiles with a long note arrive over Battle.net")
+  PRINTS = {}
+  as(A, A.ns.Rate, "Worst Person", -2, "ninja")
+  flush()
+  e = rating(B, "Worst Person", A.key)
+  ok(e and e.r == -2 and e.n == "ninja", "live RATE with two frowns reached B")
+  local seen = false
+  for _, p in ipairs(PRINTS) do
+    if p:find("Worst Person", 1, true) and p:find(B.ns.FROWN_ICON .. B.ns.FROWN_ICON .. " big jerk", 1, true) then seen = true end
+  end
+  ok(seen, "B's chat message shows two frowns")
+  as(B, B.ns.Rate, "Strong Person", -1, "meh")
+  flush()
+  agg = A.ns.Ratings.Aggregate(A.db, "Strong Person")
+  eq(agg.counts[2], 1, "A keeps own two smiles")
+  eq(agg.counts[-1], 1, "A sees B's one frown")
+  eq(agg.counts[1] + agg.counts[-2], 0, "other buckets stay empty")
 
   -- Untrusted: C is in A's party but not a friend
   local C = NewClient("Sneaky", "Stranger", { bnID = 3, party = "p1" })

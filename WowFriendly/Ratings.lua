@@ -1,7 +1,7 @@
 -- WowFriendly: rating store. Pure Lua with no WoW API so it can run under plain Lua 5.1.
 --
--- db.ratings[target][author] = { r = 1|-1|0, t = authorTime, n = note|nil, rt = receivedTime }
---   r  : 1 smile, -1 frown, 0 tombstone (cleared)
+-- db.ratings[target][author] = { r = 2|1|-1|-2|0, t = authorTime, n = note|nil, rt = receivedTime }
+--   r  : 2 two smiles, 1 one smile, -1 one frown, -2 two frowns, 0 tombstone (cleared)
 --   t  : the author's server timestamp for this entry; last-writer-wins per (target, author)
 --   n  : optional note, at most MAX_NOTE characters
 --   rt : when this client first stored this version (local only, never shipped)
@@ -12,6 +12,13 @@ ns.Ratings = Ratings
 
 Ratings.MAX_NOTE = 100
 Ratings.MAX_FUTURE = 86400 -- entries stamped more than a day in the future are rejected
+Ratings.MAX_LEVEL = 2      -- ratings run from -MAX_LEVEL to MAX_LEVEL, skipping 0
+
+-- True for a live rating value (not a tombstone): 2, 1, -1 or -2.
+function Ratings.IsLevel(r)
+  return type(r) == "number" and r == math.floor(r) and r ~= 0
+    and r >= -Ratings.MAX_LEVEL and r <= Ratings.MAX_LEVEL
+end
 
 -- Time source; tests override this.
 Ratings.now = function()
@@ -51,7 +58,7 @@ end
 function Ratings.ValidateEntry(entry)
   if type(entry) ~= "table" then return false, "not a table" end
   local r, t = entry.r, entry.t
-  if r ~= 1 and r ~= -1 and r ~= 0 then return false, "bad rating" end
+  if r ~= 0 and not Ratings.IsLevel(r) then return false, "bad rating" end
   if not isInteger(t) then return false, "bad time" end
   if t > Ratings.now() + Ratings.MAX_FUTURE then return false, "time in future" end
   local n = nil
@@ -95,7 +102,7 @@ end
 -- Records the local player's rating. Guarantees a strictly newer timestamp than the
 -- previous entry by the same author so peers never see a tie.
 function Ratings.Set(db, target, author, value, note, t)
-  assert(value == 1 or value == -1, "value must be 1 or -1")
+  assert(Ratings.IsLevel(value), "value must be 2, 1, -1 or -2")
   t = t or Ratings.now()
   local existing = Ratings.GetByAuthor(db, target, author)
   if existing and existing.t >= t then t = existing.t + 1 end
@@ -125,18 +132,23 @@ function Ratings.Merge(db, target, author, entry)
   return existing and "updated" or "added"
 end
 
--- Visible ratings for a target: counts plus entries sorted newest first. Nil when none.
+-- Visible ratings for a target: a count per level, happy/sad totals, and entries sorted
+-- newest first. Nil when none.
 function Ratings.Aggregate(db, target)
   local authors = bucket(db, target, false)
   if not authors then return nil end
-  local result = { happy = 0, sad = 0, entries = {} }
+  local result = { happy = 0, sad = 0, counts = {}, entries = {} }
+  for level = -Ratings.MAX_LEVEL, Ratings.MAX_LEVEL do
+    if level ~= 0 then result.counts[level] = 0 end
+  end
   for author, e in pairs(authors) do
-    if e.r == 1 then
-      result.happy = result.happy + 1
-    elseif e.r == -1 then
-      result.sad = result.sad + 1
-    end
-    if e.r ~= 0 then
+    if Ratings.IsLevel(e.r) then
+      result.counts[e.r] = result.counts[e.r] + 1
+      if e.r > 0 then
+        result.happy = result.happy + 1
+      else
+        result.sad = result.sad + 1
+      end
       result.entries[#result.entries + 1] = { author = author, r = e.r, t = e.t, n = e.n }
     end
   end

@@ -10,6 +10,16 @@ ns.COLOR = "|cff5fd3ff"
 ns.SMILE_ICON = "|T" .. ns.MEDIA .. "smile:14:14|t"
 ns.FROWN_ICON = "|T" .. ns.MEDIA .. "frown:14:14|t"
 
+-- Rating levels in display order (best first), and the wording used for each.
+-- A level renders as the smile or frown icon repeated once per point.
+ns.LEVELS = { 2, 1, -1, -2 }
+ns.LEVEL_INFO = {
+  [2] = { label = "very friendly" },
+  [1] = { label = "friendly" },
+  [-1] = { label = "jerk" },
+  [-2] = { label = "big jerk" },
+}
+
 do
   local getMeta = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
   local ok, version = pcall(function() return getMeta and getMeta(ADDON_NAME, "Version") end)
@@ -201,15 +211,40 @@ local function now()
 end
 ns.Now = now
 
+-- One smile per positive point, one frown per negative point; empty for 0 or nil.
 function ns.IconFor(value)
-  if value == 1 then return ns.SMILE_ICON end
-  if value == -1 then return ns.FROWN_ICON end
-  return ""
+  if type(value) ~= "number" or value == 0 then return "" end
+  local icon = value > 0 and ns.SMILE_ICON or ns.FROWN_ICON
+  local max = (ns.Ratings and ns.Ratings.MAX_LEVEL) or 2
+  return string.rep(icon, math.min(math.abs(value), max))
 end
 
--- value: 1 (smile), -1 (frown) or 0 (clear). note: optional string; nil keeps the existing note.
+-- "<icons> <label>" for a level, e.g. two smiles followed by "very friendly".
+function ns.LevelText(value)
+  local info = ns.LEVEL_INFO[value]
+  if not info then return ns.IconFor(value) end
+  return ns.IconFor(value) .. " " .. info.label
+end
+
+-- Summary of an aggregate in level order, skipping empty buckets:
+-- "<smile><smile> 2<sep><smile> 1<sep><frown> 1<sep><frown><frown> 2"
+function ns.SummaryText(agg, sep)
+  local parts = {}
+  local counts = agg and agg.counts or {}
+  for _, level in ipairs(ns.LEVELS) do
+    local n = counts[level] or 0
+    if n > 0 then parts[#parts + 1] = ns.IconFor(level) .. " " .. n end
+  end
+  return table.concat(parts, sep or "  ")
+end
+
+-- value: 2, 1, -1, -2 (a rating) or 0 (clear). note: optional string; nil keeps the existing note.
 function ns.Rate(key, value, note)
   if not ns.db then return false end
+  if value ~= 0 and not ns.Ratings.IsLevel(value) then
+    ns.Print("Ratings go from two frowns (-2) to two smiles (2).")
+    return false
+  end
   local me = ns.Identity.SelfKey()
   if not me then
     ns.Print("Your character name is not available yet; try again in a moment.")
@@ -239,7 +274,7 @@ function ns.Rate(key, value, note)
       if existing and existing.r ~= 0 then note = existing.n end
     end
     entry = ns.Ratings.Set(ns.db, key, me, value, note, now())
-    local what = value == 1 and (ns.SMILE_ICON .. " friendly") or (ns.FROWN_ICON .. " jerk")
+    local what = ns.LevelText(value)
     if entry.n then
       ns.Print("Rated %s as %s: \"%s\"", key, what, entry.n)
     else
@@ -262,7 +297,7 @@ function ns.SetNote(key, note)
   end
   local existing = ns.Ratings.GetByAuthor(ns.db, key, me)
   if not existing or existing.r == 0 then
-    ns.Print("Rate %s first (/wf happy or /wf sad), then add a note.", key)
+    ns.Print("Rate %s first (/wf happy, /wf veryhappy, /wf sad or /wf verysad), then add a note.", key)
     return false
   end
   return ns.Rate(key, existing.r, note or "")
@@ -276,7 +311,7 @@ function ns.Who(key)
     ns.Print("No ratings for %s.", key)
     return
   end
-  ns.Print("%s: %s %d  %s %d", key, ns.SMILE_ICON, agg.happy, ns.FROWN_ICON, agg.sad)
+  ns.Print("%s: %s", key, ns.SummaryText(agg, "  "))
   for _, e in ipairs(agg.entries) do
     local line = string.format("  %s %s", ns.IconFor(e.r), e.author)
     if e.n then line = line .. string.format(": \"%s\"", e.n) end

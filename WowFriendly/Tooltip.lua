@@ -8,10 +8,8 @@ local function AddLines(tooltip, key)
   local agg = ns.Ratings.Aggregate(ns.db, key)
   if not agg then return end
 
-  local summary = {}
-  if agg.happy > 0 then summary[#summary + 1] = ns.SMILE_ICON .. " " .. agg.happy end
-  if agg.sad > 0 then summary[#summary + 1] = ns.FROWN_ICON .. " " .. agg.sad end
-  tooltip:AddLine("WowFriendly  " .. table.concat(summary, "   "), 0.37, 0.83, 1)
+  -- Four buckets in level order: two smiles, one smile, one frown, two frowns.
+  tooltip:AddLine("WowFriendly  " .. ns.SummaryText(agg, "   "), 0.37, 0.83, 1)
 
   if settings.showAuthors then
     for i, e in ipairs(agg.entries) do
