@@ -7,14 +7,22 @@ friends who run the addon, so the group builds a shared memory without anyone re
 
 ## Install
 
-The addon folder is `WowFriendly/`. Copy it into your Forever AddOns directory:
+1. Download `WowFriendly-<version>.zip` from the
+   [latest release](https://github.com/jsavko/WowFriendly/releases/latest).
+2. Extract it into your Forever AddOns directory so you end up with:
 
-```
-World of Warcraft/_forever_/Interface/AddOns/WowFriendly/
-```
+   ```
+   World of Warcraft/_forever_/Interface/AddOns/WowFriendly/WowFriendly.toc
+   ```
 
-From WSL on this machine, `scripts/deploy.sh` does that with `rsync` (`-n` for a dry run).
-Then `/reload` in game. The TOC targets interface `16001` (Forever / Midnight 12.1 API).
+3. Start the game (or `/reload`) and check that **WowFriendly** is enabled in the AddOns list.
+
+Everyone in your circle needs the addon installed for ratings to sync. Battle.net friends are
+trusted automatically; anyone else is added with `/wf trust Name Surname` on both sides.
+
+Working from a checkout instead: `WowFriendly/` is the addon folder. `scripts/deploy.sh` syncs it
+into the AddOns directory with `rsync` (`-n` for a dry run), and `scripts/package.sh` builds the
+release zip into `dist/`. The TOC targets interface `16001` (Forever / Midnight 12.1 API).
 
 ## Rating players
 
