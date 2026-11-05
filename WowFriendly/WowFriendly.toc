@@ -1,0 +1,23 @@
+## Interface: 16001
+## Title: WowFriendly
+## Notes: Tag players with a smile or a frown, see it on their tooltip, and share your ratings with trusted friends.
+## Author: Simon
+## Version: 0.1.0
+## IconTexture: Interface\AddOns\WowFriendly\Media\smile
+## X-Website: https://github.com/simonabizmil/wowFriendly
+## X-Category: Social
+## SavedVariables: WowFriendlyDB
+
+Libs\libs.xml
+
+Core.lua
+Identity.lua
+Ratings.lua
+Comms.lua
+Tooltip.lua
+Menu.lua
+Commands.lua
+UI\Options.lua
+UI\Export.lua
+UI\List.lua
+Bindings.xml
